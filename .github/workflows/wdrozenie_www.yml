@@ -1,0 +1,49 @@
+name: Wdrożenie strony www
+
+on:
+  workflow_dispatch:
+    inputs:
+      IP_HOSTA:
+        description: 'Podaj adres IP hosta na który zrealizować wdrożenie strony www'
+        required: true
+        default: '0.0.0.0'
+
+jobs:
+  deploy:
+    runs-on: moj_ansible
+
+    env:
+      IP_HOSTA: ${{ github.event.inputs.IP_HOSTA }}
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v7
+
+      # Instalacja Ansible na naszym runnerze self-hosted
+      - name: Instalacja Ansible
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ansible
+
+      - name: Budowa pliku inwentarza dla Ansible
+        run: |
+          echo "Ustawienie pliku inventory"
+          mkdir -p ./inventory
+          cat << EOF > ./inventory/serwery.yaml
+          all:
+            children:
+              servers:
+                children:
+                  serweryweb:
+                    hosts:
+                      docker.adminakademia.lan:
+                        ansible_host: ${IP_HOSTA}
+                        ansible_connection: ssh
+                        ansible_ssh_user: kursant
+          EOF
+          echo ""
+          echo "Uruchamianie wdrożenia strony www"
+
+      - name: Uruchomienie scenariusza Ansible
+        run: |
+          ansible-playbook -i ./inventory/serwery.yaml instalacja_dockernginx_strona.yaml
